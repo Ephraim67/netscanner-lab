@@ -1,5 +1,7 @@
 import socket
-
+import concurrent.futures
+from typing import List, Dict, Optional
+from config import SCAN_TIMEOUT, COMMON_PORTS
 
 class PortScanner:
     def __init__(self, timeout: float = SCAN_TIMEOUT):
@@ -28,6 +30,7 @@ class PortScanner:
                 result = sock.connect_ex((ip, port))
                 
                 if result == 0:
+                    banner = self._grab_banner(sock, ip, port)
                     return {
                         'port': port,
                         'status': 'open',
@@ -108,7 +111,59 @@ class PortScanner:
                 return 'MySQL Database'
             elif 'postgresql' in banner:
                 return 'PostgreSQL Database'
+            elif 'ftp' in banner:
+                return 'FTP Server'
             
         return common_services.get(port, 'Unknown Service')
     
-    def scan_ports(self, ip: str, ports: List[int]) -> List[Dict]:
+    def scan_ports(self, ip: str, ports: List[int] = None, max_threads: int = 100) -> List[Dict]:
+        """
+        Scan multiple ports on the given IP address
+
+        Args:
+            ip (str): The IP address to scan
+            ports (List[int]): List of port numbers to scan, defaults to common ports
+            max_threads (int): Maximum number of threads to use for scanning
+
+        Returns:
+            List[Dict]: List of dictionaries with port info
+        """
+        if ports is None:
+            ports = COMMON_PORTS
+        
+        open_ports = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+            future_to_port = {executor.submit(self.scan_port, ip, port): port for port in ports}
+            
+            for future in concurrent.future_to_port.as_completed(future_to_port):
+                port = future_to_port[future]
+                try:
+                    result = future.result()
+                    if result:
+                        open_ports.append(result)
+                except Exception as e:
+                    print(f"Error scanning port {port}: {e}")
+        return sorted(open_ports, key=lambda x: x['port'])
+    
+
+    def scan_ip_range(self, ip_range: List[str], ports: List[int] = None) -> Dict[str, List[Dict]]:
+        """
+        Scan multiple IP addresses in a given range
+
+        Args:
+            ip_range (List[str]): List of IP addresses to scan
+            ports (List[int]): List of port numbers to scan, defaults to common ports
+
+        Returns:
+            Dict[str, List[Dict]]: Dictionary with IP addresses as keys and lists of open ports as values
+        """
+        results = {}
+        
+        for ip in ip_range:
+            open_ports = self.scan_ports(ip, ports)
+            if open_ports:
+                results[ip] = open_ports
+        
+        return results
+    

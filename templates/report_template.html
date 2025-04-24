@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vulnerability Scan Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1 { color: #333; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .high { background-color: #ffcccc; }
+        .medium { background-color: #fff3cd; }
+        .low { background-color: #d4edda; }
+    </style>
+</head>
+<body>
+    <h1>Vulnerability Scan Report</h1>
+    <p>Generated on: {{ timestamp }}</p>
+    <p>Total vulnerabilities found: {{ total_vulns }}</p>
+    
+    {% for host, vulns in results.items() %}
+    <h2>Host: {{ host }}</h2>
+    <table>
+        <tr>
+            <th>Port</th>
+            <th>Service</th>
+            <th>Vulnerability</th>
+            <th>Severity</th>
+            <th>Description</th>
+        </tr>
+        {% for vuln in vulns %}
+        <tr class="{{ vuln.severity }}">
+            <td>{{ vuln.port }}</td>
+            <td>{{ vuln.service }}</td>
+            <td>{{ vuln.type }}</td>
+            <td>{{ vuln.severity }}</td>
+            <td>{{ vuln.description }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+</body>
+</html>
